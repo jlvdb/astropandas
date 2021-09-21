@@ -233,6 +233,12 @@ class MatchInfo:
         ax.set_xlabel(r"$\Delta$RA / arcsec")
         ax.set_ylabel(r"$\Delta$DEC / arcsec")
 
+    def plot(self):
+        fig, (axt, axo) = plt.subplots(1, 2, figsize=(12, 4))
+        self.plot_threshold(axt)
+        self.plot_offset(axo, aspect=True)
+        fig.tight_layout()
+
 
 class Matcher:
 
