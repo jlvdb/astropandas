@@ -1,3 +1,4 @@
+import os
 import sys
 import warnings
 
@@ -63,6 +64,40 @@ def read_fits(fpath, cols=None, hdu=1):
         else:
             coldata[colname] = _convert_byteorder(data[colname])
     return pd.DataFrame(coldata)
+
+
+def read_auto(fpath):
+    """
+    Read a file by guessing its type from the extension. Standard parameters
+    are used for the pandas.read_xxx() method.
+
+    Parameters:
+    -----------
+    fpath : str
+        Path to the FITS file.
+    
+    Returns:
+        df : pandas.DataFrame
+            Table data read as DataFrame.
+    """
+    _, ext = os.path.splitext(fpath)
+    ext = ext.lower()
+    if ext in (".csv",):
+        return pd.read_csv(fpath)
+    elif ext in (".json",):
+        return pd.read_json(fpath)
+    elif ext in (".html",):
+        return pd.read_html(fpath)
+    elif ext in (".hdf5", ".h5"):
+        return pd.read_hdf5(fpath)
+    elif ext in (".pqt", ".parquet"):
+        return pd.read_parquet(fpath)
+    elif ext in (".pkl", ".pickle"):
+        return pd.read_pickle(fpath)
+    elif ext in (".fits", ".cat"):
+        return read_fits(fpath)
+    else:
+        raise ValueError(f"unrecognized file extesion '{ext}'")
 
 
 def to_fits(df, fpath):
