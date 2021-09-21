@@ -67,7 +67,7 @@ def read_fits(fpath, cols=None, hdu=1):
     return pd.DataFrame(coldata)
 
 
-def read_auto(fpath, ext=None):
+def read_auto(fpath, ext=None, **kwargs):
     """
     Read a file by guessing its type from the extension. Standard parameters
     are used for the pandas.read_xxx() method.
@@ -87,19 +87,19 @@ def read_auto(fpath, ext=None):
         _, ext = os.path.splitext(fpath)
         ext = ext.lower()
     if ext in (".csv",):
-        return pd.read_csv(fpath)
+        return pd.read_csv(fpath, **kwargs)
     elif ext in (".json",):
-        return pd.read_json(fpath)
+        return pd.read_json(fpath, **kwargs)
     elif ext in (".html",):
-        return pd.read_html(fpath)
+        return pd.read_html(fpath, **kwargs)
     elif ext in (".hdf5", ".h5"):
-        return pd.read_hdf(fpath)
+        return pd.read_hdf(fpath, **kwargs)
     elif ext in (".pqt", ".parquet"):
-        return pd.read_parquet(fpath)
+        return pd.read_parquet(fpath, **kwargs)
     elif ext in (".pkl", ".pickle"):
-        return pd.read_pickle(fpath)
+        return pd.read_pickle(fpath, **kwargs)
     elif ext in (".fits", ".cat"):
-        return read_fits(fpath)
+        return read_fits(fpath, **kwargs)
     else:
         raise ValueError("unrecognized file extesion '{:}'".format(ext))
 
@@ -131,7 +131,7 @@ def to_fits(df, fpath):
         hdu.writeto(fpath)
 
 
-def to_auto(df, fpath, ext=None):
+def to_auto(df, fpath, ext=None, **kwargs):
     """
     Write a file to a file format using standard parameters for the
     pandas.to_xxx() method.
@@ -149,18 +149,18 @@ def to_auto(df, fpath, ext=None):
         _, ext = os.path.splitext(fpath)
         ext = ext.lower()
     if ext in (".csv",):
-        df.to_csv(fpath)
+        df.to_csv(fpath, **kwargs)
     elif ext in (".json",):
-        df.to_json(fpath)
+        df.to_json(fpath, **kwargs)
     elif ext in (".html",):
-        df.to_html(fpath)
+        df.to_html(fpath, **kwargs)
     elif ext in (".hdf5", ".h5"):
-        df.to_hdf(fpath)
+        df.to_hdf(fpath, **kwargs)
     elif ext in (".pqt", ".parquet"):
-        df.to_parquet(fpath)
+        df.to_parquet(fpath, **kwargs)
     elif ext in (".pkl", ".pickle"):
-        df.to_pickle(fpath)
+        df.to_pickle(fpath, **kwargs)
     elif ext in (".fits", ".cat"):
-        to_fits(df, fpath)
+        to_fits(df, fpath, **kwargs)
     else:
         raise ValueError("unrecognized file extesion '{:}'".format(ext))
