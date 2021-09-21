@@ -78,6 +78,8 @@ def read_auto(fpath, ext=None, **kwargs):
         Path to the FITS file.
     ext : str
         Manual overwrite for the file extension
+    **kwargs
+        Passed on to the pandas.read_xxx() method
     
     Returns:
         df : pandas.DataFrame
@@ -144,6 +146,8 @@ def to_auto(df, fpath, ext=None, **kwargs):
         Path to the FITS file.
     ext : str
         Manual overwrite for the file extension
+    **kwargs
+        Passed on to the pandas.to_xxx() method
     """
     if ext is None:
         _, ext = os.path.splitext(fpath)
