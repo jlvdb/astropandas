@@ -30,6 +30,10 @@ class SphericalKDTree(object):
         pos_sphere = self._position_sky2sphere(ra, dec)
         self._tree = scipy.spatial.cKDTree(pos_sphere, leafsize)
 
+    @property
+    def data(self):
+        return self._tree.data
+
     @staticmethod
     def _position_sky2sphere(ra, dec):
         """
