@@ -3,6 +3,7 @@ import warnings
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import scipy.spatial
 
 
@@ -200,7 +201,7 @@ class MatchInfo:
             thresh = self.threshold * 3600.0
             ax.axvline(thresh, color="k")
             ax.annotate(
-                "thresh: {:.3f} arcsec".format(thresh),
+                'thresh={:.3f}"'.format(thresh),
                 xy=(thresh, np.mean(ax.get_ylim())),
                 xycoords="data", va="center", ha="right", rotation=90)
         ax.grid(alpha=0.3)
@@ -273,49 +274,82 @@ class Matcher:
             threshold = separations[idx_minimum:idx_minimum+2].mean()
         return MatchInfo(separations, counts, threshold)
 
+    def index_map(self, source_tree, target_tree, source_idx, target_idx):
+        # idx_match: for each object in left -> index of nearest object in right
+        dist, idx_match = source_tree.query(
+            *target_tree.data.T, k=1,
+            distance_upper_bound=self.info.threshold)
+        match_mask = np.isfinite(dist)
+        if not match_mask.any():
+            raise ValueError(
+                f"no match found within {self.info.threshold:.1f} arcsec")
+        idx_map = dict(zip(
+            target_idx.compress(match_mask),
+            source_idx[idx_match.compress(match_mask)]))
+        return idx_map
+
+    def get_keynames(self, merged, suffixes):
+        left = {
+            "ra": self.left_ra if self.left_ra in merged else \
+                  self.left_ra + suffixes[0],
+            "dec": self.left_dec if self.left_dec in merged else \
+                   self.left_dec + suffixes[0]}
+        right = {
+            "ra": self.right_ra if self.right_ra in merged else \
+                  self.right_ra + suffixes[1],
+            "dec": self.right_dec if self.right_dec in merged else \
+                   self.right_dec + suffixes[1]}
+        return left, right
+
+    def merge_coordinates(self, merged, left_name, right_name, suffix):
+        # remove the column data from the merged frame
+        insert_idx = merged.columns.get_loc(left_name)
+        left_data = merged.pop(left_name)
+        right_data = merged.pop(right_name)
+        # keep values from self if they are set, rightwise right and
+        # reinsert under original name in left frame
+        data = np.where(np.isnan(left_data), right_data, left_data)
+        merged.insert(
+            insert_idx, left_name.replace(suffix, ""), data)
+
     def match(
             self, how="inner", threshold=None, sort=False,
-            suffixes=("_x", "_y"), workers=1, copy=True, indicator=False):
+            suffixes=("_x", "_y"), copy=True, indicator=False):
         # create matching indices, initialised with no overlap
         left_idx = np.arange(len(self.left))
         right_idx = np.arange(len(self.right)) + len(self.left)
-        info = self.auto_threshold(threshold)
-        # idx_match: for each object in right -> index of nearest object in left
-        dist, idx_match = self.tree_left.query(
-            *self.tree_right.data.T, k=1,
-            distance_upper_bound=info.threshold, workers=workers)
-        match_mask = np.isfinite(dist)
-        if not match_mask.any():
-            raise ValueError(
-                f"no match found within {info.threshold:.1f} arcsec")
-        idx_match_left = dict(zip(
-            right_idx.compress(match_mask),
-            left_idx[idx_match.compress(match_mask)]))
-        # idx_match: for each object in left -> index of nearest object in right
-        dist, idx_match = self.tree_right.query(
-            *self.tree_left.data.T, k=1,
-            distance_upper_bound=info.threshold, workers=workers)
-        match_mask = np.isfinite(dist)
-        if not match_mask.any():
-            raise ValueError(
-                f"no match found within {info.threshold:.1f} arcsec")
-        idx_match_right = dict(zip(
-            left_idx.compress(match_mask),
-            right_idx[idx_match.compress(match_mask)]))
-        # find the symmetric matches
-        index_left = left_idx.copy()
-        n = 0
-        for i_left, i_right in idx_match_right.items():
-            # check if the match is symmetric (each rights closest partner)
-            if i_left == idx_match_left.get(i_right, -1):
-                index_left[i_left] = i_right
-                n += 1
+        self.info = self.auto_threshold(threshold)
+
+        # idx_match: for each object in source -> index of neighbor in target
+        if how != "right":
+            idx_match_left = self.index_map(
+                self.tree_left, self.tree_right, left_idx, right_idx)
+        if how != "left":
+            idx_match_right = self.index_map(
+                self.tree_right, self.tree_left, right_idx, left_idx)
+
         # insert the indices temporarily for the pandas join method
         temp_key = "__spatial_match"
-        self.left[temp_key] = index_left
-        self.right[temp_key] = right_idx
+        if how == "left":
+            self.left[temp_key] = pd.Series(
+                idx_match_left.keys(), dtype=np.int64)
+            self.right[temp_key] = pd.Series(
+                idx_match_left.values(), dtype=np.int64)
+        elif how == "right":
+            self.left[temp_key] = pd.Series(
+                idx_match_right.values(), dtype=np.int64)
+            self.right[temp_key] = pd.Series(
+                idx_match_right.keys(), dtype=np.int64)
+        else:  # find the symmetric matches
+            for i_left, i_right in idx_match_right.items():
+                # check if the match is symmetric (each rights closest partner)
+                if i_left == idx_match_left.get(i_right, -1):
+                    left_idx[i_left] = i_right
+            self.right[temp_key] = pd.Series(left_idx, dtype=np.int64)
+            self.right[temp_key] = pd.Series(right_idx, dtype=np.int64)
+
+        # merge on the left and right spatial index
         try:
-            # do a simple 1-D index match on the left and right index
             merged = self.left.merge(
                 self.right, how=how, on=temp_key, sort=sort, suffixes=suffixes,
                 copy=copy, indicator=indicator)
@@ -326,37 +360,17 @@ class Matcher:
             merged.pop(temp_key)
         except KeyError:
             pass
-        # get the columns names in the merged data frame
-        left_ra = self.left_ra if self.left_ra in merged else \
-                  self.left_ra + suffixes[0]
-        right_ra = self.right_ra if self.right_ra in merged else \
-                   self.right_ra + suffixes[1]
-        left_dec = self.left_dec if self.left_dec in merged else \
-                   self.left_dec + suffixes[0]
-        right_dec = self.right_dec if self.right_dec in merged else \
-                    self.right_dec + suffixes[1]
+
         # collect distances between matches
-        info.set_distances(
-            merged[left_ra] - merged[right_ra],
-            merged[left_dec] - merged[right_dec])
+        left_names, right_names = self.get_keynames(merged, suffixes)
+        self.info.set_distances(
+            merged[left_names["ra"]] - merged[right_names["ra"]],
+            merged[left_names["dec"]] - merged[right_names["dec"]])
         # merge the RA/Dec columns used for matching
-        iter_cols = zip([left_ra, left_dec], [right_ra, right_dec])
-        for left_name, right_name in iter_cols:
-            # correct the name if a suffix was appended to the orginal names
-            if left_name not in merged:
-                left_name += suffixes[0]
-            if right_name not in merged:
-                right_name += suffixes[1]
-            # remove the column data from the merged frame
-            insert_idx = merged.columns.get_loc(left_name)
-            left_data = merged.pop(left_name)
-            right_data = merged.pop(right_name)
-            # keep values from self if they are set, rightwise right and
-            # reinsert under original name in left frame
-            data = np.where(np.isnan(left_data), right_data, left_data)
-            merged.insert(
-                insert_idx, left_name.replace(suffixes[0], ""), data)
-        return merged, info
+        for key in left_names:
+            self.merge_coordinates(
+                merged, left_names[key], right_names[key], suffixes[0])
+        return merged
 
 
 def match(
@@ -378,6 +392,7 @@ def match(
             raise KeyError(left_ra)
         if right_ra not in right:
             raise KeyError(right_ra)
+
     # collect the key for Declination
     if dec is not None:
         if dec not in left or dec not in right:
@@ -391,9 +406,10 @@ def match(
             raise KeyError(left_dec)
         if right_dec not in right:
             raise KeyError(right_dec)
+
     # perform the matching
     matcher = Matcher(left, right, left_ra, right_ra, left_dec, right_dec)
-    matched, info = matcher.match(
+    matched = matcher.match(
         how=how, threshold=threshold, sort=sort,
         suffixes=suffixes, workers=workers, copy=copy, indicator=indicator)
-    return matched, info
+    return matched, matcher.info
