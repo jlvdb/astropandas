@@ -102,7 +102,7 @@ class SphericalKDTree(object):
         dist_sky = np.rad2deg(dist_sky_rad)
         return dist_sky
 
-    def query(self, ra, dec, k=1, distance_upper_bound=np.inf, workers=1):
+    def query(self, ra, dec, k=1, distance_upper_bound=np.inf):
         """
         Find all data points within an angular aperture r around a reference
         point with coordiantes (RA, DEC) obeying the spherical geometry.
@@ -113,13 +113,13 @@ class SphericalKDTree(object):
             Single or list of right ascensions in degrees.
         dec : float or array_like
             Single or list of declinations in degrees.
+        k : int
+            Number of nearest neighbours to query.
         distance_upper_bound : float
             Return only neighbors within this distance. This is used to prune
             tree searches, so if you are doing a series of nearest-neighbor
             queries, it may help to supply the distance to the nearest neighbor
             of the most recent point.
-        k : int
-            Number of nearest neighbours to query.
 
         Returns
         -------
@@ -135,7 +135,7 @@ class SphericalKDTree(object):
         points = self._position_sky2sphere(ra, dec)
         distance, i = self._tree.query(
             points, k, distance_upper_bound=self._distance_sky2sphere(
-                distance_upper_bound), workers=workers)
+                distance_upper_bound))
         # convert the distance to angular separation
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -275,30 +275,28 @@ class Matcher:
 
     def match(
             self, how="inner", threshold=None, sort=False,
-            suffixes=("_x", "_y"), workers=1, copy=True, indicator=False):
+            suffixes=("_x", "_y"), copy=True, indicator=False):
         # create matching indices, initialised with no overlap
         left_idx = np.arange(len(self.left))
         right_idx = np.arange(len(self.right)) + len(self.left)
         info = self.auto_threshold(threshold)
         # idx_match: for each object in right -> index of nearest object in left
         dist, idx_match = self.tree_left.query(
-            *self.tree_right.data.T, k=1,
-            distance_upper_bound=info.threshold, workers=workers)
+            *self.tree_right.data.T, k=1, distance_upper_bound=info.threshold)
         match_mask = np.isfinite(dist)
         if not match_mask.any():
             raise ValueError(
-                f"no match found within {info.threshold:.1f} arcsec")
+                "no match found within {:.1f} arcsec".format(info.threshold))
         idx_match_left = dict(zip(
             right_idx.compress(match_mask),
             left_idx[idx_match.compress(match_mask)]))
         # idx_match: for each object in left -> index of nearest object in right
         dist, idx_match = self.tree_right.query(
-            *self.tree_left.data.T, k=1,
-            distance_upper_bound=info.threshold, workers=workers)
+            *self.tree_left.data.T, k=1, distance_upper_bound=info.threshold)
         match_mask = np.isfinite(dist)
         if not match_mask.any():
             raise ValueError(
-                f"no match found within {info.threshold:.1f} arcsec")
+                "no match found within {:.1f} arcsec".format(info.threshold))
         idx_match_right = dict(zip(
             left_idx.compress(match_mask),
             right_idx[idx_match.compress(match_mask)]))

@@ -60,7 +60,8 @@ def read_fits(fpath, cols=None, hdu=1):
     coldata = {}
     for colname, (dt, _) in data.dtype.fields.items():
         if len(dt.shape) > 0:
-            warnings.warn(f"dropping multidimensional column '{colname}'")
+            warnings.warn(
+                "dropping multidimensional column '{:}'".format(colname))
         else:
             coldata[colname] = _convert_byteorder(data[colname])
     return pd.DataFrame(coldata)
@@ -100,7 +101,7 @@ def read_auto(fpath, ext=None):
     elif ext in (".fits", ".cat"):
         return read_fits(fpath)
     else:
-        raise ValueError(f"unrecognized file extesion '{ext}'")
+        raise ValueError("unrecognized file extesion '{:}'".format(ext))
 
 
 def to_fits(df, fpath):
@@ -162,4 +163,4 @@ def to_auto(df, fpath, ext=None):
     elif ext in (".fits", ".cat"):
         to_fits(df, fpath)
     else:
-        raise ValueError(f"unrecognized file extesion '{ext}'")
+        raise ValueError("unrecognized file extesion '{:}'".format(ext))
