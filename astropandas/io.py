@@ -66,7 +66,7 @@ def read_fits(fpath, cols=None, hdu=1):
     return pd.DataFrame(coldata)
 
 
-def read_auto(fpath):
+def read_auto(fpath, ext=None):
     """
     Read a file by guessing its type from the extension. Standard parameters
     are used for the pandas.read_xxx() method.
@@ -75,13 +75,16 @@ def read_auto(fpath):
     -----------
     fpath : str
         Path to the FITS file.
+    ext : str
+        Manual overwrite for the file extension
     
     Returns:
         df : pandas.DataFrame
             Table data read as DataFrame.
     """
-    _, ext = os.path.splitext(fpath)
-    ext = ext.lower()
+    if ext is None:
+        _, ext = os.path.splitext(fpath)
+        ext = ext.lower()
     if ext in (".csv",):
         return pd.read_csv(fpath)
     elif ext in (".json",):
@@ -89,7 +92,7 @@ def read_auto(fpath):
     elif ext in (".html",):
         return pd.read_html(fpath)
     elif ext in (".hdf5", ".h5"):
-        return pd.read_hdf5(fpath)
+        return pd.read_hdf(fpath)
     elif ext in (".pqt", ".parquet"):
         return pd.read_parquet(fpath)
     elif ext in (".pkl", ".pickle"):
@@ -125,3 +128,38 @@ def to_fits(df, fpath):
             for col in df.columns]
         hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
         hdu.writeto(fpath)
+
+
+def to_auto(df, fpath, ext=None):
+    """
+    Write a file to a file format using standard parameters for the
+    pandas.to_xxx() method.
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Data frame to write.
+    fpath : str
+        Path to the FITS file.
+    ext : str
+        Manual overwrite for the file extension
+    """
+    if ext is None:
+        _, ext = os.path.splitext(fpath)
+        ext = ext.lower()
+    if ext in (".csv",):
+        df.to_csv(fpath)
+    elif ext in (".json",):
+        df.to_json(fpath)
+    elif ext in (".html",):
+        df.to_html(fpath)
+    elif ext in (".hdf5", ".h5"):
+        df.to_hdf(fpath)
+    elif ext in (".pqt", ".parquet"):
+        df.to_parquet(fpath)
+    elif ext in (".pkl", ".pickle"):
+        df.to_pickle(fpath)
+    elif ext in (".fits", ".cat"):
+        to_fits(df, fpath)
+    else:
+        raise ValueError(f"unrecognized file extesion '{ext}'")
