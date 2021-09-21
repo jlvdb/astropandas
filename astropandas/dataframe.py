@@ -63,68 +63,28 @@ def read_fits(fpath, cols=None, hdu=1):
     return df
 
 
-class DataFrame(pd.DataFrame):
+def to_fits(df, fpath):
+    """
+    Write a pandas.DataFrame as FITS table file.
 
-    def match(
-            self, right, how="inner", threshold=None,
-            ra=None, left_ra=None, right_ra=None,
-            dec=None, left_dec=None, right_dec=None,
-            sort=False, suffixes=("_x", "_y"), copy=True,
-            indicator=False, workers=1):
-        # collect the key for Right Ascension
-        if ra is not None:
-            if ra not in self or ra not in right:
-                raise KeyError(ra)
-            left_ra = ra
-            right_ra = ra
-        else:
-            if left_ra is None or right_ra is None:
-                raise ValueError("Right Ascension keys must be specified")
-            if left_ra not in self:
-                raise KeyError(left_ra)
-            if right_ra not in right:
-                raise KeyError(right_ra)
-        # collect the key for Declination
-        if dec is not None:
-            if dec not in self or dec not in right:
-                raise KeyError(dec)
-            left_dec = dec
-            right_dec = dec
-        else:
-            if left_dec is None or right_dec is None:
-                raise ValueError("Declination keys must be specified")
-            if left_dec not in self:
-                raise KeyError(left_dec)
-            if right_dec not in right:
-                raise KeyError(right_dec)
-        # perform the matching
-        matcher = Matcher(self, right, left_ra, right_ra, left_dec, right_dec)
-        match, info = matcher.match(
-            self, how=how, threshold=threshold, sort=sort,
-            suffixes=suffixes, workers=workers, copy=copy, indicator=indicator)
-        return match, info
-
-
-    def to_fits(self, fpath):
-        """
-        Write a pandas.DataFrame as FITS table file.
-
-        Parameters:
-        -----------
-        fpath : str
-            Path to the FITS file.
-        """
-        # load the FITS data
-        if _FITSIO:
-            dtype = np.dtype(list(self.dtypes.items()))
-            array = np.empty(len(self), dtype=dtype)
-            for column in self.columns:
-                array[column] = self[column]
-            with fitsio.FITS(fpath, "rw") as fits:
-                fits.write(array)
-        else:
-            columns = [
-                astropy.io.fits.Column(name=col, array=self[col])
-                for col in self.columns]
-            hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
-            hdu.writeto(fpath)
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        Data frame to write as FITS table.
+    fpath : str
+        Path to the FITS file.
+    """
+    # load the FITS data
+    if _FITSIO:
+        dtype = np.dtype(list(df.dtypes.items()))
+        array = np.empty(len(df), dtype=dtype)
+        for column in df.columns:
+            array[column] = df[column]
+        with fitsio.FITS(fpath, "rw") as fits:
+            fits.write(array)
+    else:
+        columns = [
+            astropy.io.fits.Column(name=col, array=df[col])
+            for col in df.columns]
+        hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
+        hdu.writeto(fpath)

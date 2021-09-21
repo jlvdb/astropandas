@@ -340,3 +340,43 @@ class Matcher:
             merged.insert(
                 insert_idx, left_name.replace(suffixes[0], ""), data)
         return merged, info
+
+
+def match(
+        left, right, how="inner", threshold=None,
+        ra=None, left_ra=None, right_ra=None,
+        dec=None, left_dec=None, right_dec=None,
+        sort=False, suffixes=("_x", "_y"), copy=True,
+        indicator=False, workers=1):
+    # collect the key for Right Ascension
+    if ra is not None:
+        if ra not in left or ra not in right:
+            raise KeyError(ra)
+        left_ra = ra
+        right_ra = ra
+    else:
+        if left_ra is None or right_ra is None:
+            raise ValueError("Right Ascension keys must be specified")
+        if left_ra not in left:
+            raise KeyError(left_ra)
+        if right_ra not in right:
+            raise KeyError(right_ra)
+    # collect the key for Declination
+    if dec is not None:
+        if dec not in left or dec not in right:
+            raise KeyError(dec)
+        left_dec = dec
+        right_dec = dec
+    else:
+        if left_dec is None or right_dec is None:
+            raise ValueError("Declination keys must be specified")
+        if left_dec not in left:
+            raise KeyError(left_dec)
+        if right_dec not in right:
+            raise KeyError(right_dec)
+    # perform the matching
+    matcher = Matcher(left, right, left_ra, right_ra, left_dec, right_dec)
+    matched, info = matcher.match(
+        left, how=how, threshold=threshold, sort=sort,
+        suffixes=suffixes, workers=workers, copy=copy, indicator=indicator)
+    return matched, info
