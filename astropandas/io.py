@@ -1,4 +1,5 @@
 import sys
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -8,8 +9,6 @@ try:
 except ImportError:
     import astropy.io
     _FITSIO = False
-
-from .match import Matcher
 
 
 def _convert_byteorder(data):
@@ -57,10 +56,13 @@ def read_fits(fpath, cols=None, hdu=1):
             else:
                 data = fits[hdu][cols]
     # construct the data frame
-    df = pd.DataFrame(data={
-        colname: _convert_byteorder(data[colname])
-        for colname, _ in data.dtype.fields.items()})
-    return df
+    coldata = {}
+    for colname, (dt, _) in data.dtype.fields.items():
+        if len(dt.shape) > 0:
+            warnings.warn(f"dropping multidimensional column '{colname}'")
+        else:
+            coldata[colname] = _convert_byteorder(data[colname])
+    return pd.DataFrame(coldata)
 
 
 def to_fits(df, fpath):
