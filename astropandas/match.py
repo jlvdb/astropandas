@@ -27,12 +27,9 @@ class SphericalKDTree(object):
         if len(ra) != len(dec):
             raise ValueError("'ra' and 'dec' must have the same length")
         # convert angular coordinates to 3D points on unit sphere
+        self.data = np.transpose([ra, dec])
         pos_sphere = self._position_sky2sphere(ra, dec)
         self._tree = scipy.spatial.cKDTree(pos_sphere, leafsize)
-
-    @property
-    def data(self):
-        return self._tree.data
 
     @staticmethod
     def _position_sky2sphere(ra, dec):
@@ -275,16 +272,16 @@ class Matcher:
         info = self.auto_threshold(threshold)
         # idx_match: for each object in right -> index of nearest object in left
         dist, idx_match = self.tree_left.query(
-            self.tree_right.data, k=1, distance_upper_bound=info.threshold,
-            workers=workers)
+            *self.tree_right.data.T, k=1,
+            distance_upper_bound=info.threshold, workers=workers)
         match_mask = np.isfinite(dist)
         idx_match_left = dict(zip(
             right_idx.compress(match_mask),
             left_idx[idx_match.compress(match_mask)]))
         # idx_match: for each object in left -> index of nearest object in right
         dist, idx_match = self.tree_right.query(
-            self.tree_left.data, k=1, distance_upper_bound=info.threshold,
-            workers=workers)
+            *self.tree_left.data.T, k=1,
+            distance_upper_bound=info.threshold, workers=workers)
         match_mask = np.isfinite(dist)
         idx_match_right = dict(zip(
             left_idx.compress(match_mask),
