@@ -235,7 +235,7 @@ class MatchInfo:
 
 class Matcher:
 
-    def init(
+    def __init__(
             self, left, right, left_ra, right_ra, left_dec, right_dec):
         self.left = left
         self.right = right
@@ -377,6 +377,6 @@ def match(
     # perform the matching
     matcher = Matcher(left, right, left_ra, right_ra, left_dec, right_dec)
     matched, info = matcher.match(
-        left, how=how, threshold=threshold, sort=sort,
+        how=how, threshold=threshold, sort=sort,
         suffixes=suffixes, workers=workers, copy=copy, indicator=indicator)
     return matched, info
