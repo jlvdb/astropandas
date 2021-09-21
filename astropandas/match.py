@@ -130,10 +130,10 @@ class SphericalKDTree(object):
             squeezed if input ra/dec are scalar. Missing neighbors are indicated
             with length of self.data.
         """
-        point_sphere = self._position_sky2sphere(ra, dec)
-        i, distance = self._tree.query(
-            point_sphere, k, distance_upper_bound=distance_upper_bound,
-            workers=workers)
+        points = self._position_sky2sphere(ra, dec)
+        distance, i = self._tree.query(
+            points, k, distance_upper_bound=self._distance_sky2sphere(
+                distance_upper_bound), workers=workers)
         # convert the distance to angular separation
         d = self._distance_sphere2sky(distance)
         return d, i
@@ -175,7 +175,7 @@ class MatchInfo:
 
     def __init__(self, separations, counts, threshold):
         self.separations = separations
-        self.count = counts
+        self.counts = counts
         self.threshold = threshold
         self.distances = None
 
@@ -191,7 +191,7 @@ class MatchInfo:
     def plot_threshold(self, ax=None):
         if ax is None:
             ax = plt.gca()
-        ax.plot(self.distances * 3600.0, self.counts)
+        ax.plot(self.separations * 3600.0, self.counts)
         if np.isfinite(self.threshold):
             thresh = self.threshold * 3600.0
             ax.axvline(thresh, color="k")
@@ -200,14 +200,14 @@ class MatchInfo:
                 xy=(thresh, np.mean(ax.get_ylim())),
                 xycoords="data", va="center", ha="right", rotation=90)
         ax.grid(alpha=0.3)
-        ax.set_xlabel("Point separation")
+        ax.set_xlabel("Point separation / arcsec")
         ax.set_ylabel("Frequency")
 
     def plot_offset(self, ax=None, sigmas=3, aspect=False):
         mask = np.isfinite(self.distances).all(axis=1)
         delta_ra, delta_dec = np.transpose(self.distances[mask] * 3600.0)
-        offset = self.offset()
-        scatter = self.scatter()
+        offset = self.offset() * 3600.0
+        scatter = self.scatter() * 3600.0
         ax_range = sigmas * max(scatter)
         # make the plot
         if ax is None:
@@ -275,6 +275,9 @@ class Matcher:
             *self.tree_right.data.T, k=1,
             distance_upper_bound=info.threshold, workers=workers)
         match_mask = np.isfinite(dist)
+        if not match_mask.any():
+            raise ValueError(
+                f"no match found within {info.threshold:.1f} arcsec")
         idx_match_left = dict(zip(
             right_idx.compress(match_mask),
             left_idx[idx_match.compress(match_mask)]))
@@ -283,6 +286,9 @@ class Matcher:
             *self.tree_left.data.T, k=1,
             distance_upper_bound=info.threshold, workers=workers)
         match_mask = np.isfinite(dist)
+        if not match_mask.any():
+            raise ValueError(
+                f"no match found within {info.threshold:.1f} arcsec")
         idx_match_right = dict(zip(
             left_idx.compress(match_mask),
             right_idx[idx_match.compress(match_mask)]))
@@ -300,7 +306,7 @@ class Matcher:
         self.right[temp_key] = right_idx
         try:
             # do a simple 1-D index match on the left and right index
-            merged = self.merge(
+            merged = self.left.merge(
                 self.right, how=how, on=temp_key, sort=sort, suffixes=suffixes,
                 copy=copy, indicator=indicator)
         finally:  # always remove the temporary columns
