@@ -1,3 +1,5 @@
+import warnings
+
 import matplotlib.patches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -135,7 +137,9 @@ class SphericalKDTree(object):
             points, k, distance_upper_bound=self._distance_sky2sphere(
                 distance_upper_bound), workers=workers)
         # convert the distance to angular separation
-        d = self._distance_sphere2sky(distance)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            d = self._distance_sphere2sky(distance)
         return d, i
 
     def count_neighbors(self, other, r, cumulative=True):
