@@ -123,6 +123,8 @@ def to_fits(df, fpath):
         array = np.empty(len(df), dtype=dtype)
         for column in df.columns:
             array[column] = df[column]
+        if os.path.exists(fpath):
+            os.remove(fpath)
         with fitsio.FITS(fpath, "rw") as fits:
             fits.write(array)
     else:
@@ -130,7 +132,7 @@ def to_fits(df, fpath):
             astropy.io.fits.Column(name=col, array=df[col])
             for col in df.columns]
         hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
-        hdu.writeto(fpath)
+        hdu.writeto(fpath, overwrite=True)
 
 
 def to_auto(df, fpath, ext=None, **kwargs):
