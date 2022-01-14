@@ -53,9 +53,9 @@ def read_fits(fpath, cols=None, hdu=1):
     else:
         with astropy.io.fits.open(fpath) as fits:
             if cols is None:
-                data = fits[hdu]
+                data = fits[hdu].data
             else:
-                data = fits[hdu][cols]
+                data = fits[hdu][cols].data
     # construct the data frame
     coldata = {}
     for colname, (dt, _) in data.dtype.fields.items():
@@ -129,7 +129,7 @@ def to_fits(df, fpath):
             fits.write(array)
     else:
         columns = [
-            astropy.io.fits.Column(name=col, array=df[col])
+            astropy.io.fits.Column(name=col, format='E', array=df[col])
             for col in df.columns]
         hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
         hdu.writeto(fpath, overwrite=True)
