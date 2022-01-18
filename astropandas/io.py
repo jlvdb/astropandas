@@ -8,8 +8,13 @@ try:
     import fitsio
     _FITSIO = True
 except ImportError:
-    import astropy.io
+    import astropy.io.fits
     _FITSIO = False
+    warnings.warn(
+        "astropy.io.fits implementation does not support string type columns")
+    # set up data type conversion
+    from astropy.io.fits.column import FITS2NUMPY as format_FITS2NUMPY
+    format_NUMPY2FITS = dict((v, k) for k, v in format_FITS2NUMPY.items())
 
 
 def _convert_byteorder(data):
@@ -23,6 +28,30 @@ def _convert_byteorder(data):
         elif sys.byteorder == "big":
             dtype = np.dtype(">" + dtype.base.str.strip("><"))
     return data.astype(dtype, casting="equiv", copy=False)
+
+
+def get_FITS_format(data):
+    """
+    Get a FITS data format string for given a numpy.ndarray.
+
+    Parameters:
+    -----------
+    data : numpy.ndarray
+        Data to generate a format string for.
+    
+    Returns:
+    -------
+    fmt_str : str
+        Format string.
+    """
+    numpy_fmt_str = data.dtype.str.strip("<|>")
+    try:
+        fmt_str = format_NUMPY2FITS[numpy_fmt_str]
+    except KeyError:
+        raise TypeError(
+            "cannot convert data of type '{:}' to FITS binary".format(
+                data.dtype))
+    return fmt_str
 
 
 def read_fits(fpath, cols=None, hdu=1):
@@ -39,8 +68,9 @@ def read_fits(fpath, cols=None, hdu=1):
         Subset of columns to read from the table, defaults to all.
     
     Returns:
-        df : pandas.DataFrame
-            Table data converted to a DataFrame instance.
+    -------
+    df : pandas.DataFrame
+        Table data converted to a DataFrame instance.
     """
     # load the FITS data
     if _FITSIO:
@@ -53,9 +83,9 @@ def read_fits(fpath, cols=None, hdu=1):
     else:
         with astropy.io.fits.open(fpath) as fits:
             if cols is None:
-                data = fits[hdu]
+                data = fits[hdu].data
             else:
-                data = fits[hdu][cols]
+                data = fits[hdu][cols].data
     # construct the data frame
     coldata = {}
     for colname, (dt, _) in data.dtype.fields.items():
@@ -82,8 +112,9 @@ def read_auto(fpath, ext=None, **kwargs):
         Passed on to the pandas.read_xxx() method
     
     Returns:
-        df : pandas.DataFrame
-            Table data read as DataFrame.
+    -------
+    df : pandas.DataFrame
+        Table data read as DataFrame.
     """
     if ext is None:
         _, ext = os.path.splitext(fpath)
@@ -128,9 +159,18 @@ def to_fits(df, fpath):
         with fitsio.FITS(fpath, "rw") as fits:
             fits.write(array)
     else:
-        columns = [
-            astropy.io.fits.Column(name=col, array=df[col])
-            for col in df.columns]
+        columns = []
+        for col in df.columns:
+            try:
+                coldef = astropy.io.fits.Column(
+                    name=col,
+                    format=get_FITS_format(df[col]),
+                    array=df[col])
+                columns.append(coldef)
+            except TypeError:
+                warnings.warn(
+                    "dropping column '{:}' with unsuppored type '{:}'".format(
+                        col, df[col].dtype))
         hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
         hdu.writeto(fpath, overwrite=True)
 
