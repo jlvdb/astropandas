@@ -10,6 +10,8 @@ try:
 except ImportError:
     import astropy.io.fits
     _FITSIO = False
+    warnings.warn(
+        "astropy.io.fits implementation does not support string type columns")
     # set up data type conversion
     from astropy.io.fits.column import FITS2NUMPY as format_FITS2NUMPY
     format_NUMPY2FITS = dict((v, k) for k, v in format_FITS2NUMPY.items())
@@ -46,13 +48,9 @@ def get_FITS_format(data):
     try:
         fmt_str = format_NUMPY2FITS[numpy_fmt_str]
     except KeyError:
-        if numpy_fmt_str == "O" and type(data[0]) is str:
-            strlen = max(len(s) for s in data)
-            fmt_str = "{:d}A".format(strlen)
-        else:
-            raise TypeError(
-                "cannot convert data of type '{:}' to FITS binary".format(
-                    data.dtype))
+        raise TypeError(
+            "cannot convert data of type '{:}' to FITS binary".format(
+                data.dtype))
     return fmt_str
 
 
@@ -161,12 +159,18 @@ def to_fits(df, fpath):
         with fitsio.FITS(fpath, "rw") as fits:
             fits.write(array)
     else:
-        columns = [
-            astropy.io.fits.Column(
-                name=col,
-                format=get_FITS_format(df[col]),
-                array=df[col])
-            for col in df.columns]
+        columns = []
+        for col in df.columns:
+            try:
+                coldef = astropy.io.fits.Column(
+                    name=col,
+                    format=get_FITS_format(df[col]),
+                    array=df[col])
+                columns.append(coldef)
+            except TypeError:
+                warnings.warn(
+                    "dropping column '{:}' with unsuppored type '{:}'".format(
+                        col, df[col].dtype))
         hdu = astropy.io.fits.BinTableHDU.from_columns(columns)
         hdu.writeto(fpath, overwrite=True)
 
