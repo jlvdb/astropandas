@@ -85,7 +85,7 @@ def read_fits(fpath, cols=None, hdu=1):
             if cols is None:
                 data = fits[hdu].data
             else:
-                data = fits[hdu][cols].data
+                data = fits[hdu].data[cols]
     # construct the data frame
     coldata = {}
     for colname, (dt, _) in data.dtype.fields.items():
