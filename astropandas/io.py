@@ -85,7 +85,13 @@ def read_fits(fpath, cols=None, hdu=1):
             if cols is None:
                 data = fits[hdu].data
             else:
-                data = fits[hdu].data[cols]
+                nrows = len(fits[hdu].data.shape[0])
+                vals = [fits[hdu].data[c] for c in cols]
+                dtype = np.dtype([
+                    (c, v.dtype.str) for c, v in zip(cols, vals)])
+                data = np.empty(nrows, dtype=dtype)
+                for c, v in zip(cols, vals):
+                    data[c] = v
     # construct the data frame
     coldata = {}
     for colname, (dt, _) in data.dtype.fields.items():
