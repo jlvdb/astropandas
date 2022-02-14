@@ -54,7 +54,7 @@ def get_FITS_format(data):
     return fmt_str
 
 
-def read_fits(fpath, cols=None, hdu=1):
+def read_fits(fpath, columns=None, hdu=1):
     """
     Read a FITS data table into a pandas.DataFrame.
 
@@ -75,22 +75,22 @@ def read_fits(fpath, cols=None, hdu=1):
     # load the FITS data
     if _FITSIO:
         fits = fitsio.FITS(fpath)
-        if cols is None:
+        if columns is None:
             data = fits[hdu][:]
         else:
-            data = fits[hdu][cols][:]
+            data = fits[hdu][columns][:]
         fits.close()
     else:
         with astropy.io.fits.open(fpath) as fits:
-            if cols is None:
+            if columns is None:
                 data = fits[hdu].data
             else:
                 nrows = fits[hdu].data.shape[0]
-                vals = [fits[hdu].data[c] for c in cols]
+                vals = [fits[hdu].data[c] for c in columns]
                 dtype = np.dtype([
-                    (c, v.dtype.str) for c, v in zip(cols, vals)])
+                    (c, v.dtype.str) for c, v in zip(columns, vals)])
                 data = np.empty(nrows, dtype=dtype)
-                for c, v in zip(cols, vals):
+                for c, v in zip(columns, vals):
                     data[c] = v
     # construct the data frame
     coldata = {}
