@@ -2,4 +2,4 @@ matplotlib
 numpy
 pandas
 scipy
-astropy
+fitsio
