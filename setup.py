@@ -14,5 +14,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/jlvdb/astropandas",
-    packages=setuptools.find_packages(),
-    install_requires=install_requires)
+    packages=["astropandas"],
+    install_requires=install_requires,
+    classifiers=[
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Programming Language :: Python :: 3"])

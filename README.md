@@ -1,8 +1,8 @@
 # astropandas
 
-Tools to expand on pandas functionality for astronomical operations.
+Tools to expand on pandas functionality for astronomical applications.
 
 ## Features
 
-- directly read and write FITS table data
-- match based on sky coordinates
+- directly read and write FITS table data, see `astropandas.read_fits` and `astropandas.to_fits`
+- match based on sky coordinates, see `astropandas.match`
