@@ -103,7 +103,7 @@ def read_fits(fpath, columns=None, hdu=1):
     return pd.DataFrame(coldata)
 
 
-def read_auto(fpath, ext=None, **kwargs):
+def read_auto(fpath, columns=None, ext=None, **kwargs):
     """
     Read a file by guessing its type from the extension. Standard parameters
     are used for the pandas.read_xxx() method.
@@ -113,18 +113,32 @@ def read_auto(fpath, ext=None, **kwargs):
     fpath : str
         Path to the FITS file.
     ext : str
-        Manual overwrite for the file extension
+        Manual overwrite for the file extension.
+    columns : list of str (optional)
+        Subset of columns to read from the table (if supported), defaults to
+        all.
     **kwargs
-        Passed on to the pandas.read_xxx() method
+        Passed on to the pandas.read_xxx() method.
     
     Returns:
     -------
     df : pandas.DataFrame
         Table data read as DataFrame.
     """
+    # parse the extension
     if ext is None:
         _, ext = os.path.splitext(fpath)
         ext = ext.lower()
+    # parse the columns parameter
+    if columns is not None:
+        if ext in (".json", ".html", ".pkl"):
+            warnings.warn(
+                f"column subsets are not supported for extension '{ext}'")
+        elif ext == ".csv":
+            kwargs["usecols"] = columns
+        else:
+            kwargs["columns"] = columns
+    # read data
     if ext in (".csv",):
         return pd.read_csv(fpath, **kwargs)
     elif ext in (".json",):
@@ -193,9 +207,9 @@ def to_auto(df, fpath, ext=None, **kwargs):
     fpath : str
         Path to the FITS file.
     ext : str
-        Manual overwrite for the file extension
+        Manual overwrite for the file extension.
     **kwargs
-        Passed on to the pandas.to_xxx() method
+        Passed on to the pandas.to_xxx() method.
     """
     if ext is None:
         _, ext = os.path.splitext(fpath)
