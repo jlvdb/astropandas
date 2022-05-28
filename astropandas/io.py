@@ -149,6 +149,8 @@ def read_auto(fpath, columns=None, ext=None, **kwargs):
         return pd.read_hdf(fpath, **kwargs)
     elif ext in (".pqt", ".parquet"):
         return pd.read_parquet(fpath, **kwargs)
+    elif ext in (".feather"):
+        return pd.read_feather(fpath, **kwargs)
     elif ext in (".pkl", ".pickle"):
         return pd.read_pickle(fpath, **kwargs)
     elif ext in (".fits", ".cat"):
@@ -224,6 +226,8 @@ def to_auto(df, fpath, ext=None, **kwargs):
         df.to_hdf(fpath, **kwargs)
     elif ext in (".pqt", ".parquet"):
         df.to_parquet(fpath, **kwargs)
+    elif ext in (".feather"):
+        return pd.to_feather(fpath, **kwargs)
     elif ext in (".pkl", ".pickle"):
         df.to_pickle(fpath, **kwargs)
     elif ext in (".fits", ".cat"):
