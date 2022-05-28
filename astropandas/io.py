@@ -227,7 +227,7 @@ def to_auto(df, fpath, ext=None, **kwargs):
     elif ext in (".pqt", ".parquet"):
         df.to_parquet(fpath, **kwargs)
     elif ext in (".feather"):
-        return pd.to_feather(fpath, **kwargs)
+        df.to_feather(fpath, **kwargs)
     elif ext in (".pkl", ".pickle"):
         df.to_pickle(fpath, **kwargs)
     elif ext in (".fits", ".cat"):
