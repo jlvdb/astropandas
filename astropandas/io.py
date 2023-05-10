@@ -1,6 +1,10 @@
+from __future__ import annotations
+
 import os
 import sys
 import warnings
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -10,14 +14,15 @@ try:
 except ImportError:
     import astropy.io.fits
     _FITSIO = False
-    warnings.warn(
-        "astropy.io.fits implementation does not support string type columns")
     # set up data type conversion
     from astropy.io.fits.column import FITS2NUMPY as format_FITS2NUMPY
     format_NUMPY2FITS = dict((v, k) for k, v in format_FITS2NUMPY.items())
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def _convert_byteorder(data):
+
+def _convert_byteorder(data: NDArray) -> NDArray:
     dtype = data.dtype
     # check if the byte order matches the native order, identified by the
     # numpy dtype string representation: little endian = "<" and
@@ -30,7 +35,7 @@ def _convert_byteorder(data):
     return data.astype(dtype, casting="equiv", copy=False)
 
 
-def get_FITS_format(data):
+def get_FITS_format(data: NDArray) -> str:
     """
     Get a FITS data format string for given a numpy.ndarray.
 
@@ -54,7 +59,12 @@ def get_FITS_format(data):
     return fmt_str
 
 
-def read_fits(fpath, columns=None, hdu=1):
+def read_fits(
+    fpath: str,
+    columns: Sequence[str] | None = None,
+    hdu: int = 1,
+    use_fitsio: bool = _FITSIO
+) -> pd.DataFrame:
     """
     Read a FITS data table into a pandas.DataFrame.
 
@@ -73,37 +83,67 @@ def read_fits(fpath, columns=None, hdu=1):
         Table data converted to a DataFrame instance.
     """
     # load the FITS data
-    if _FITSIO:
+    if use_fitsio:
         fits = fitsio.FITS(fpath)
-        if columns is None:
-            data = fits[hdu][:]
-        else:
-            data = fits[hdu][columns][:]
-        fits.close()
+        try:
+            if columns is None:
+                data = fits[hdu][:]
+            else:
+                data = fits[hdu][columns][:]
+        finally:
+            fits.close()
+
+        # construct the data frame
+        coldata = {}
+        for colname, (dt, _) in data.dtype.fields.items():
+            if len(dt.shape) > 0:
+                warnings.warn(
+                    "dropping multidimensional column '{:}'".format(colname))
+            else:
+                coldata[colname] = _convert_byteorder(data[colname])
+        dataframe = pd.DataFrame(coldata)
+
     else:
         with astropy.io.fits.open(fpath) as fits:
             if columns is None:
-                data = fits[hdu].data
+                # probably better to read data at once but I did not find a good
+                # way to identify and convert string columns correctly to fixed
+                # width
+                columns = fits[hdu].data.dtype.names
+            nrows = fits[hdu].data.shape[0]
+            vals = [fits[hdu].data[c] for c in columns]
+            dtype = np.dtype([
+                (c, v.dtype.str) for c, v in zip(columns, vals)])
+            data = np.empty(nrows, dtype=dtype)
+            for c, v in zip(columns, vals):
+                data[c] = v
+
+        # construct the data frame
+        coldata = {}
+        for colname, (dt, _) in data.dtype.fields.items():
+            if dt.kind == "O":
+                coldata[colname] = np.array([
+                    "".join(chars) for chars in data[colname]]).astype("|S")
+            elif len(dt.shape) > 0:
+                warnings.warn(
+                    "dropping multidimensional column '{:}'".format(colname))
             else:
-                nrows = fits[hdu].data.shape[0]
-                vals = [fits[hdu].data[c] for c in columns]
-                dtype = np.dtype([
-                    (c, v.dtype.str) for c, v in zip(columns, vals)])
-                data = np.empty(nrows, dtype=dtype)
-                for c, v in zip(columns, vals):
-                    data[c] = v
-    # construct the data frame
-    coldata = {}
-    for colname, (dt, _) in data.dtype.fields.items():
-        if len(dt.shape) > 0:
-            warnings.warn(
-                "dropping multidimensional column '{:}'".format(colname))
-        else:
-            coldata[colname] = _convert_byteorder(data[colname])
-    return pd.DataFrame(coldata)
+                coldata[colname] = _convert_byteorder(data[colname])
+        dataframe = pd.DataFrame(coldata)
+
+    # convert string types to fixed width (pandas default are py str objects)
+    for colname, values in coldata.items():
+        if values.dtype.kind in "SU":
+            # FITS does not support unicode, use bytes array instead
+            dataframe[colname] = values.astype("|S")
+    return dataframe
 
 
-def read_auto(fpath, columns=None, ext=None, **kwargs):
+def read_auto(
+    fpath: str,
+    columns: Sequence[str] | None = None,
+    **kwargs
+) -> pd.DataFrame:
     """
     Read a file by guessing its type from the extension. Standard parameters
     are used for the pandas.read_xxx() method.
@@ -159,7 +199,11 @@ def read_auto(fpath, columns=None, ext=None, **kwargs):
         raise ValueError("unrecognized file extesion '{:}'".format(ext))
 
 
-def to_fits(df, fpath):
+def to_fits(
+    df: pd.DataFrame,
+    fpath: str,
+    use_fitsio: bool = _FITSIO
+) -> None:
     """
     Write a pandas.DataFrame as FITS table file.
 
@@ -171,7 +215,7 @@ def to_fits(df, fpath):
         Path to the FITS file.
     """
     # load the FITS data
-    if _FITSIO:
+    if use_fitsio:
         dtype = np.dtype(list(df.dtypes.items()))
         array = np.empty(len(df), dtype=dtype)
         for column in df.columns:
@@ -197,7 +241,12 @@ def to_fits(df, fpath):
         hdu.writeto(fpath, overwrite=True)
 
 
-def to_auto(df, fpath, ext=None, **kwargs):
+def to_auto(
+    df: pd.DataFrame,
+    fpath: str,
+    ext: int | None = None,
+    **kwargs
+) -> None:
     """
     Write a file to a file format using standard parameters for the
     pandas.to_xxx() method.
