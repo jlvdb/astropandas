@@ -1,15 +1,16 @@
 import os
 import setuptools
 
+source_dir = os.path.dirname(os.path.abspath(__file__))
 
-with open("README.md", "r") as f:
+with open(os.path.join(source_dir, "README.md")) as f:
     long_description = f.read()
 
-with open("requirements.txt") as f:
+with open(os.path.join(source_dir, "requirements.txt")) as f:
     install_requires = [pkg.strip() for pkg in f.readlines() if pkg.strip()]
 
 __version__ = None
-with open(os.path.join("astropandas", "version.py")) as f:
+with open(os.path.join(source_dir, "astropandas", "version.py")) as f:
     exec(f.read())  # reads __version__ value
 
 setuptools.setup(
