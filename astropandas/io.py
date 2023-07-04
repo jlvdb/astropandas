@@ -142,6 +142,7 @@ def read_fits(
 def read_auto(
     fpath: str,
     columns: Sequence[str] | None = None,
+    ext: str | None = None,
     **kwargs
 ) -> pd.DataFrame:
     """
@@ -152,7 +153,7 @@ def read_auto(
     -----------
     fpath : str
         Path to the FITS file.
-    ext : str
+    ext : str (optional)
         Manual overwrite for the file extension.
     columns : list of str (optional)
         Subset of columns to read from the table (if supported), defaults to
