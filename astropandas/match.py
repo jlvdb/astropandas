@@ -1,7 +1,5 @@
 import warnings
 
-import matplotlib.patches
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.spatial
 
@@ -197,6 +195,8 @@ class MatchInfo:
         return np.nanstd(self.distances, axis=0)
 
     def plot_threshold(self, ax=None):
+        import matplotlib.pyplot as plt
+
         if ax is None:
             ax = plt.gca()
         ax.plot(self.separations * 3600.0, self.counts)
@@ -212,6 +212,9 @@ class MatchInfo:
         ax.set_ylabel("Frequency")
 
     def plot_offset(self, ax=None, sigmas=3, aspect=False):
+        import matplotlib.patches
+        import matplotlib.pyplot as plt
+
         mask = np.isfinite(self.distances).all(axis=1)
         delta_ra, delta_dec = np.transpose(self.distances[mask] * 3600.0)
         offset = self.offset() * 3600.0
@@ -242,6 +245,8 @@ class MatchInfo:
         ax.set_ylabel(r"$\Delta$DEC / arcsec")
 
     def plot(self):
+        import matplotlib.pyplot as plt
+
         fig, (axt, axo) = plt.subplots(1, 2, figsize=(12, 4))
         self.plot_threshold(axt)
         self.plot_offset(axo, aspect=True)
