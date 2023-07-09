@@ -1,6 +1,15 @@
 # astropandas
 
 Tools to expand on pandas functionality for astronomical applications.
+The code is publically hosted on github:
+
+https://github.com/jlvdb/yet_another_wizz.git
+
+## Installation
+
+The yet_another_wizz package can be installed directly with pip::
+
+    pip install astropandas
 
 ## Features
 
