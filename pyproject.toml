@@ -1,3 +1,33 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "astropandas"
+dynamic = ["version"]
+authors = [
+    {name = "Jan Luca van den Busch", email = "jlvdb@astro.ruhr-uni-bochum.de"},
+]
+description = "Tools to expand on pandas functionality for astronomical operations."
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+repository = "https://github.com/jlvdb/astropandas"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"
+]
+requires-python = ">=3.7"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "fitsio"
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib"]
+
+[tool.setuptools.dynamic]
+version = {attr = "astropandas.__version__"}
